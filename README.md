@@ -6,13 +6,13 @@ Pont entre **VisBug** (édition visuelle dans Chrome) et **Claude Code** via MCP
 
 ```
 Chrome (VisBug)
-  └─ content-script.js  →  WebSocket :3847  →  node src/server.js
+  └─ content-script.js  →  WebSocket :4844  →  node src/server.js
                                                      └─ MCP stdio  →  Claude Code
 ```
 
 Il y a deux modes de lancement distincts :
 - **MCP stdio** → lancé par Claude Code directement via `node src/server.js`
-- **WebSocket :3847** → le même process, Claude Code le démarre, le browser s'y connecte
+- **WebSocket :4844** → le même process, Claude Code le démarre, le browser s'y connecte
 
 ## Démarrage rapide
 
@@ -52,7 +52,7 @@ Ou manuellement dans `.claude.json` de ton projet SAAS :
 ## Utilisation
 
 1. Lance ton app Vue : `npm run dev`
-2. Ouvre `http://localhost:5173` dans Chrome
+2. Ouvre `http://localhost:8000` dans Chrome
 3. Active VisBug et modifie des éléments visuellement
 4. Dans Claude Code :
 
