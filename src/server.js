@@ -10,6 +10,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import { parseMutationsToChanges, formatForClaude, clearSeen } from './parser.js'
+import { execSync } from 'child_process'
 
 const WS_PORT = 4844
 
@@ -19,6 +20,20 @@ const store = {
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
+
+function freePort(port) {
+  try {
+    const pids = execSync(`lsof -ti :${port} 2>/dev/null || true`).toString().trim()
+    if (pids) {
+      pids.split('\n').filter(Boolean).forEach(pid => {
+        try { execSync(`kill ${pid}`) } catch {}
+      })
+      process.stderr.write(`[visbug-mcp] freed port ${port} (killed: ${pids.replace(/\n/g, ' ')})\n`)
+    }
+  } catch {}
+}
+
+freePort(WS_PORT)
 
 const wss = new WebSocketServer({ port: WS_PORT })
 
