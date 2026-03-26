@@ -1,0 +1,15 @@
+{
+  "name": "visbug-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP server that captures VisBug DOM mutations and exposes them to Claude Code",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ws": "^8.18.0"
+  }
+}
