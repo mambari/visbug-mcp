@@ -1,70 +1,39 @@
 /**
- * visbug-mcp — server.js
+ * server.js — MCP server (stdio)
+ *
+ * Démarré par Claude Code à la demande.
+ * Lit et écrit le fichier store (~/.visbug-mcp/changes.json).
+ * Le serveur WebSocket est géré séparément par ws-daemon.js.
  */
 
-import { WebSocketServer } from 'ws'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { parseMutationsToChanges, formatForClaude, clearSeen } from './parser.js'
-import { execSync } from 'child_process'
+import { formatForClaude } from './parser.js'
+import { readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
 
-const WS_PORT = 4844
+const STORE_DIR = join(homedir(), '.visbug-mcp')
+const STORE_FILE = join(STORE_DIR, 'changes.json')
 
-const store = {
-  mutations: [],
-  changes: [],
-}
-
-// ─── WebSocket ────────────────────────────────────────────────────────────────
-
-function freePort(port) {
+function readStore() {
   try {
-    const pids = execSync(`lsof -ti :${port} 2>/dev/null || true`).toString().trim()
-    if (pids) {
-      pids.split('\n').filter(Boolean).forEach(pid => {
-        try { execSync(`kill ${pid}`) } catch {}
-      })
-      process.stderr.write(`[visbug-mcp] freed port ${port} (killed: ${pids.replace(/\n/g, ' ')})\n`)
-    }
-  } catch {}
+    mkdirSync(STORE_DIR, { recursive: true })
+    const data = JSON.parse(readFileSync(STORE_FILE, 'utf8'))
+    return data.changes ?? []
+  } catch {
+    return []
+  }
 }
 
-freePort(WS_PORT)
-
-const wss = new WebSocketServer({ port: WS_PORT })
-
-wss.on('listening', () => {
-  process.stderr.write(`[visbug-mcp] WebSocket listening on ws://127.0.0.1:${WS_PORT}\n`)
-})
-
-wss.on('error', (err) => {
-  process.stderr.write(`[visbug-mcp] WebSocket error: ${err.message}\n`)
-  // Ne pas crasher — le MCP stdio reste fonctionnel même sans WebSocket
-})
-
-wss.on('connection', (ws) => {
-  ws.on('message', (raw) => {
-    try {
-      const msg = JSON.parse(raw.toString())
-
-      if (msg.event === 'mutations') {
-        store.mutations.push(...msg.mutations)
-        const parsed = parseMutationsToChanges(msg.mutations)
-        store.changes.push(...parsed)
-      }
-
-      if (msg.event === 'popup-ping') {
-        ws.send(JSON.stringify({ event: 'stats', total: store.changes.length }))
-      }
-    } catch (err) {
-      process.stderr.write(`[visbug-mcp] parse error: ${err.message}\n`)
-    }
-  })
-})
+function writeStore(changes) {
+  mkdirSync(STORE_DIR, { recursive: true })
+  writeFileSync(STORE_FILE, JSON.stringify({ changes }, null, 2))
+}
 
 // ─── MCP ──────────────────────────────────────────────────────────────────────
 
@@ -116,27 +85,29 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params
 
   if (name === 'get_changes') {
-    let result = store.changes.filter(c => !c.applied)
+    const changes = readStore()
+    let result = changes.filter(c => !c.applied)
     if (args?.filter) result = result.filter(c => c.type === args.filter)
     const text = result.length === 0 ? 'Aucun changement.' : formatForClaude(result)
     return { content: [{ type: 'text', text }] }
   }
 
   if (name === 'apply_changes') {
+    const changes = readStore()
     const ids = args?.ids
     if (!ids || ids.length === 0) {
-      store.changes.forEach(c => { c.applied = true })
+      changes.forEach(c => { c.applied = true })
     } else {
-      ids.forEach(i => { if (store.changes[i]) store.changes[i].applied = true })
+      ids.forEach(i => { if (changes[i]) changes[i].applied = true })
     }
-    return { content: [{ type: 'text', text: `Marqué comme appliqué : ${ids?.length ?? store.changes.length} changement(s)` }] }
+    writeStore(changes)
+    return { content: [{ type: 'text', text: `Marqué comme appliqué : ${ids?.length ?? changes.length} changement(s)` }] }
   }
 
   if (name === 'clear_changes') {
-    const count = store.changes.length
-    store.mutations = []
-    store.changes = []
-    clearSeen()
+    const changes = readStore()
+    const count = changes.length
+    writeStore([])
     return { content: [{ type: 'text', text: `Buffer vidé (${count} changement(s) supprimés)` }] }
   }
 

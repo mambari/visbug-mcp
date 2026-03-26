@@ -7,7 +7,6 @@ const RECONNECT_DELAY = 2000
 const VISBUG_ATTR = ['style', 'class', 'src', 'href', 'alt', 'title', 'contenteditable']
 
 let socket = null
-let buffer = []
 let connected = false
 
 function connect() {
@@ -16,8 +15,18 @@ function connect() {
   socket.addEventListener('open', () => {
     connected = true
     console.debug('[visbug-mcp] connected')
-    buffer.forEach(msg => socket.send(JSON.stringify(msg)))
-    buffer = []
+  })
+
+  socket.addEventListener('message', (e) => {
+    try {
+      const msg = JSON.parse(e.data)
+      if (msg.event === 'clear-visbug-storage') {
+        const removed = Object.keys(localStorage)
+          .filter(k => /visbug|vis-bug/i.test(k))
+        removed.forEach(k => localStorage.removeItem(k))
+        console.debug(`[visbug-mcp] localStorage cleared (${removed.length} key(s))`)
+      }
+    } catch {}
   })
 
   socket.addEventListener('close', () => {
@@ -31,9 +40,8 @@ function connect() {
 function send(payload) {
   if (connected && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(payload))
-  } else {
-    buffer.push(payload)
   }
+  // Mutations pré-connexion ignorées — ce sont des artifacts de rendu page, pas des changements VisBug
 }
 
 function getSelector(el) {

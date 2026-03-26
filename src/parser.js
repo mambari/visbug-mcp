@@ -11,6 +11,15 @@ export function clearSeen() {
   seen = new Map()
 }
 
+// Reconstruit le Map `seen` à partir de changements chargés depuis le disque
+// pour que la déduplication reste cohérente après un redémarrage
+export function restoreSeen(changes) {
+  seen = new Map()
+  for (const c of changes) {
+    seen.set(buildKey(c), c)
+  }
+}
+
 // ─── Filtres bruit ────────────────────────────────────────────────────────────
 
 const NOISE_SELECTORS = [

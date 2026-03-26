@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "daemon": "node src/ws-daemon.js",
+    "daemon:watch": "node --watch src/ws-daemon.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
